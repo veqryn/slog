@@ -10,16 +10,21 @@ import (
 )
 
 const (
-	contextKey = "context"
+	// ContextField defines the field to store context.
+	ContextField = "context"
+	rootLevelKey = "root"
 )
 
+// Logger represents an interface wrapper for the structured logger implementation of SLF.
 type Logger interface {
 	slf.Logger
 	SetLevel(level slf.Level, contexts ...string)
 	AddEntryHandler(handler EntryHandler)
+	SetEntryHandlers(handlers ...EntryHandler)
 	Contexts() map[string]slf.StructuredLogger
 }
 
+// New constructs a new logger conforming with SLF.
 func New() Logger {
 	res := &factory{
 		root: rootlogger{
@@ -52,7 +57,7 @@ func (log *factory) withContext(context string) *logger {
 		return ctx
 	}
 	fields := make(map[string]interface{})
-	fields[contextKey] = context
+	fields[ContextField] = context
 	ctx = &logger{
 		rootlogger: &rootlogger{minlevel: log.root.minlevel, provider: log.root.provider},
 		fields:     fields,
@@ -67,12 +72,13 @@ func (log *factory) SetLevel(level slf.Level, contexts ...string) {
 	log.Lock()
 	defer log.Unlock()
 	if len(contexts) == 0 {
+		log.root.minlevel = level
 		for _, logger := range log.contexts {
 			logger.rootlogger.minlevel = level
 		}
 	} else {
 		for _, context := range contexts {
-			if strings.ToLower(context) != "root" {
+			if strings.ToLower(context) != rootLevelKey {
 				log.withContext(context).rootlogger.minlevel = level
 			} else {
 				log.root.minlevel = level

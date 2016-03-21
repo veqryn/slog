@@ -12,7 +12,8 @@ import (
 )
 
 const (
-	traceKey = "trace"
+	// TraceField defined the key for the field to store trace duration.
+	TraceField   = "trace"
 	traceMessage = "trace"
 )
 
@@ -65,6 +66,83 @@ func (log *logger) WithError(err error) slf.BasicLogger {
 
 // Log implements the Logger interface.
 func (log *logger) Log(level slf.Level, message string) slf.Tracer {
+	return log.log(level, message)
+}
+
+// Trace implements the Logger interface.
+func (log *logger) Trace(err *error) {
+	log.Lock()
+	defer log.Unlock()
+	if log.lasttouch != epoch {
+		if log.lastlevel >= log.rootlogger.minlevel {
+			var entry *entry
+			if err != nil {
+				entry = log.entry(log.lastlevel, traceMessage, *err)
+			} else {
+				entry = log.entry(log.lastlevel, traceMessage, nil)
+			}
+			entry.fields[TraceField] = time.Now().Sub(log.lasttouch)
+			log.handle(entry)
+		}
+		// reset in any case
+		log.lasttouch = epoch
+	}
+}
+
+// Debug implements the Logger interface.
+func (log *logger) Debug(message string) slf.Tracer {
+	return log.log(slf.LevelDebug, message)
+}
+
+// Debugf implements the Logger interface.
+func (log *logger) Debugf(format string, args ...interface{}) slf.Tracer {
+	return log.logf(format, slf.LevelDebug, args...)
+}
+
+// Info implements the Logger interface.
+func (log *logger) Info(message string) slf.Tracer {
+	return log.log(slf.LevelInfo, message)
+}
+
+// Infof implements the Logger interface.
+func (log *logger) Infof(format string, args ...interface{}) slf.Tracer {
+	return log.logf(format, slf.LevelInfo, args...)
+}
+
+// Warn implements the Logger interface.
+func (log *logger) Warn(message string) slf.Tracer {
+	return log.log(slf.LevelWarn, message)
+}
+
+// Warnf implements the Logger interface.
+func (log *logger) Warnf(format string, args ...interface{}) slf.Tracer {
+	return log.logf(format, slf.LevelWarn, args...)
+}
+
+// Error implements the Logger interface.
+func (log *logger) Error(message string) slf.Tracer {
+	return log.log(slf.LevelError, message)
+}
+
+// Errorf implements the Logger interface.
+func (log *logger) Errorf(format string, args ...interface{}) slf.Tracer {
+	return log.logf(format, slf.LevelError, args...)
+}
+
+// Panic implements the Logger interface.
+func (log *logger) Panic(message string) {
+	log.log(slf.LevelPanic, message)
+	panic(errors.New(message))
+}
+
+// Panicf implements the Logger interface.
+func (log *logger) Panicf(format string, args ...interface{}) {
+	log.logf(format, slf.LevelPanic, args...)
+	panic(fmt.Errorf(format, args...))
+}
+
+// Log implements the Logger interface.
+func (log *logger) log(level slf.Level, message string) slf.Tracer {
 	if level < log.rootlogger.minlevel {
 		return noop
 	}
@@ -77,79 +155,12 @@ func (log *logger) Log(level slf.Level, message string) slf.Tracer {
 }
 
 // Logf implements the Logger interface.
-func (log *logger) Logf(level slf.Level, format string, args ...interface{}) slf.Tracer {
+func (log *logger) logf(format string, level slf.Level, args ...interface{}) slf.Tracer {
 	if level < log.rootlogger.minlevel {
 		return noop
 	}
 	message := fmt.Sprintf(format, args...)
-	return log.Log(level, message)
-}
-
-// Trace implements the Logger interface.
-func (log *logger) Trace(err *error) {
-	log.Lock()
-	defer log.Unlock()
-	if log.lasttouch != epoch {
-		if log.lastlevel >= log.rootlogger.minlevel {
-			entry := log.entry(log.lastlevel, traceMessage, *err)
-			entry.fields[traceKey] = time.Now().Sub(log.lasttouch)
-			log.handle(entry)
-		}
-		// reset in any case
-		log.lasttouch = epoch
-	}
-}
-
-// Debug implements the Logger interface.
-func (log *logger) Debug(message string) slf.Tracer {
-	return log.Log(slf.LevelDebug, message)
-}
-
-// Debugf implements the Logger interface.
-func (log *logger) Debugf(format string, args ...interface{}) slf.Tracer {
-	return log.Logf(slf.LevelDebug, format, args...)
-}
-
-// Info implements the Logger interface.
-func (log *logger) Info(message string) slf.Tracer {
-	return log.Log(slf.LevelInfo, message)
-}
-
-// Infof implements the Logger interface.
-func (log *logger) Infof(format string, args ...interface{}) slf.Tracer {
-	return log.Logf(slf.LevelInfo, format, args...)
-}
-
-// Warn implements the Logger interface.
-func (log *logger) Warn(message string) slf.Tracer {
-	return log.Log(slf.LevelWarn, message)
-}
-
-// Warnf implements the Logger interface.
-func (log *logger) Warnf(format string, args ...interface{}) slf.Tracer {
-	return log.Logf(slf.LevelWarn, format, args...)
-}
-
-// Error implements the Logger interface.
-func (log *logger) Error(message string) slf.Tracer {
-	return log.Log(slf.LevelError, message)
-}
-
-// Errorf implements the Logger interface.
-func (log *logger) Errorf(format string, args ...interface{}) slf.Tracer {
-	return log.Logf(slf.LevelError, format, args...)
-}
-
-// Panic implements the Logger interface.
-func (log *logger) Panic(message string) {
-	log.Log(slf.LevelPanic, message)
-	panic(errors.New(message))
-}
-
-// Panicf implements the Logger interface.
-func (log *logger) Panicf(format string, args ...interface{}) {
-	log.Logf(slf.LevelPanic, format, args...)
-	panic(fmt.Errorf(format, args...))
+	return log.log(level, message)
 }
 
 func (log *logger) copy() *logger {
@@ -168,7 +179,7 @@ func (log *logger) entry(level slf.Level, message string, err error) *entry {
 	for key, value := range log.fields {
 		fields[key] = value
 	}
-	return &entry{level: level, message: message, err: err, fields: fields}
+	return &entry{tm: time.Now(), level: level, message: message, err: err, fields: fields}
 }
 
 func (log *logger) handle(entry *entry) {

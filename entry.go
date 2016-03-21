@@ -3,7 +3,10 @@
 
 package slog
 
-import "github.com/ventu-io/slf"
+import (
+	"github.com/ventu-io/slf"
+	"time"
+)
 
 // EntryHandler processes filtered log entries in independent go-routines.
 type EntryHandler interface {
@@ -16,6 +19,9 @@ type EntryHandler interface {
 // Entry represents a log entry for structured logging. Entries are only created when the requested
 // level is same or above the minimum log level of the context root.
 type Entry interface {
+
+	// Time represents entry time stamp.
+	Time() time.Time
 
 	// Level represents the log level.
 	Level() slf.Level
@@ -31,10 +37,15 @@ type Entry interface {
 }
 
 type entry struct {
+	tm      time.Time
 	level   slf.Level
 	message string
 	err     error
 	fields  map[string]interface{}
+}
+
+func (e *entry) Time() time.Time {
+	return e.tm
 }
 
 func (e *entry) Level() slf.Level {
