@@ -4,11 +4,12 @@
 package slog_test
 
 import (
-	"github.com/ventu-io/slf"
-	"github.com/ventu-io/slog"
 	"testing"
+	"github.com/ventu-io/slog"
+	"github.com/ventu-io/slf"
 )
 
-func TestLogger_conformsInterface_success(t *testing.T) {
+func TestLogger_compliesWithInterface_success(t *testing.T) {
 	var _ slf.Logger = slog.New()
 }
+

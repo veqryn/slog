@@ -13,15 +13,15 @@ const (
 	contextKey = "context"
 )
 
-type Logger struct {
-	sync.Mutex
-	root     rootlogger
-	contexts map[string]*logger
-	handlers []EntryHandler
+type Logger interface {
+	slf.Logger
+	SetLevel(level slf.Level, contexts ...string)
+	AddEntryHandler(handler EntryHandler)
+	Contexts() map[string]slf.StructuredLogger
 }
 
-func New() *Logger {
-	res := &Logger{
+func New() Logger {
+	res := &factory{
 		root: rootlogger{
 			minlevel: slf.LevelInfo,
 		},
@@ -31,14 +31,22 @@ func New() *Logger {
 	return res
 }
 
+// factory implements the slog.Logger interface.
+type factory struct {
+	sync.Mutex
+	root     rootlogger
+	contexts map[string]*logger
+	handlers []EntryHandler
+}
+
 // WithContext delivers a logger for the given context (reusing loggers for the same context).
-func (log *Logger) WithContext(context string) slf.StructuredLogger {
+func (log *factory) WithContext(context string) slf.StructuredLogger {
 	log.Lock()
 	defer log.Unlock()
 	return log.withContext(context)
 }
 
-func (log *Logger) withContext(context string) *logger {
+func (log *factory) withContext(context string) *logger {
 	ctx, ok := log.contexts[context]
 	if ok {
 		return ctx
@@ -55,7 +63,7 @@ func (log *Logger) withContext(context string) *logger {
 
 // SetLevel sets the logging slf.Level to given contexts, all loggers if no context given, or the root
 // logger when context defined as "root".
-func (log *Logger) SetLevel(level slf.Level, contexts ...string) {
+func (log *factory) SetLevel(level slf.Level, contexts ...string) {
 	log.Lock()
 	defer log.Unlock()
 	if len(contexts) == 0 {
@@ -76,6 +84,22 @@ func (log *Logger) SetLevel(level slf.Level, contexts ...string) {
 // AddEntryHandler adds a handler for log entries that are logged at or above the set
 // log slf.Level. Unsafe if called while logging is already being performed, thus should be called
 // at the initialisation time only.
-func (log *Logger) AddEntryHandler(handler EntryHandler) {
+func (log *factory) AddEntryHandler(handler EntryHandler) {
 	log.handlers = append(log.handlers, handler)
+}
+
+// SetEntryHandlers overwrites existing entry handlers with a new set.
+func (log *factory) SetEntryHandlers(handlers ...EntryHandler) {
+	log.handlers = append([]EntryHandler{}, handlers...)
+}
+
+// Contexts returns all defined root logging contexts.
+func (log *factory) Contexts() map[string]slf.StructuredLogger {
+	res := make(map[string]slf.StructuredLogger)
+	log.Lock()
+	defer log.Unlock()
+	for key, val := range log.contexts {
+		res[key] = val
+	}
+	return res
 }

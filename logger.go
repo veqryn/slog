@@ -12,6 +12,7 @@ import (
 )
 
 const (
+	traceKey = "trace"
 	traceMessage = "trace"
 )
 
@@ -24,7 +25,7 @@ var (
 // (with different fields) contain this one to identify the log level and entry handlers.
 type rootlogger struct {
 	minlevel slf.Level
-	provider *Logger
+	provider *factory
 }
 
 // logger represents a logger in the context. It is created from the rootlogger by copying its
@@ -69,7 +70,7 @@ func (log *logger) Log(level slf.Level, message string) slf.Tracer {
 	}
 	log.Lock()
 	defer log.Unlock()
-	log.handle(level, message, log.err)
+	log.handle(log.entry(level, message, log.err))
 	log.lasttouch = time.Now()
 	log.lastlevel = level
 	return log
@@ -90,7 +91,9 @@ func (log *logger) Trace(err *error) {
 	defer log.Unlock()
 	if log.lasttouch != epoch {
 		if log.lastlevel >= log.rootlogger.minlevel {
-			log.handle(log.lastlevel, traceMessage, *err)
+			entry := log.entry(log.lastlevel, traceMessage, *err)
+			entry.fields[traceKey] = time.Now().Sub(log.lasttouch)
+			log.handle(entry)
 		}
 		// reset in any case
 		log.lasttouch = epoch
@@ -160,16 +163,15 @@ func (log *logger) copy() *logger {
 	return res
 }
 
-func (log *logger) handle(level slf.Level, message string, err error) {
-	entry := &entry{
-		level:   level,
-		message: message,
-		err:     err,
-		fields:  make(map[string]interface{}),
-	}
+func (log *logger) entry(level slf.Level, message string, err error) *entry {
+	fields := make(map[string]interface{})
 	for key, value := range log.fields {
-		entry.fields[key] = value
+		fields[key] = value
 	}
+	return &entry{level: level, message: message, err: err, fields: fields}
+}
+
+func (log *logger) handle(entry *entry) {
 	// unsafe wrt changing handlers (those should be initialized up front)
 	for _, handler := range log.rootlogger.provider.handlers {
 		go handler.Handle(entry)
