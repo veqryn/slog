@@ -7,13 +7,17 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ventu-io/slf"
+	"path"
+	"runtime"
 	"sync"
 	"time"
 )
 
 const (
 	// TraceField defined the key for the field to store trace duration.
-	TraceField   = "trace"
+	TraceField = "trace"
+	// CallerField defines the key for the caller information.
+	CallerField  = "caller"
 	traceMessage = "trace"
 )
 
@@ -36,6 +40,7 @@ type logger struct {
 	*rootlogger
 	sync.Mutex
 	fields    map[string]interface{}
+	caller    slf.CallerInfo
 	err       error
 	lasttouch time.Time
 	lastlevel slf.Level
@@ -57,6 +62,13 @@ func (log *logger) WithFields(fields slf.Fields) slf.StructuredLogger {
 	return res
 }
 
+// WithCaller implements the Logger interface.
+func (log *logger) WithCaller(caller slf.CallerInfo) slf.StructuredLogger {
+	res := log.copy()
+	res.caller = caller
+	return res
+}
+
 // WithError implements the Logger interface.
 func (log *logger) WithError(err error) slf.BasicLogger {
 	res := log.copy()
@@ -73,20 +85,18 @@ func (log *logger) Log(level slf.Level, message string) slf.Tracer {
 func (log *logger) Trace(err *error) {
 	log.Lock()
 	defer log.Unlock()
-	if log.lasttouch != epoch {
-		if log.lastlevel >= log.rootlogger.minlevel {
-			var entry *entry
-			if err != nil {
-				entry = log.entry(log.lastlevel, traceMessage, *err)
-			} else {
-				entry = log.entry(log.lastlevel, traceMessage, nil)
-			}
-			entry.fields[TraceField] = time.Now().Sub(log.lasttouch)
-			log.handle(entry)
+	if log.lasttouch != epoch && log.lastlevel >= log.rootlogger.minlevel {
+		var entry *entry
+		if err != nil {
+			entry = log.entry(log.lastlevel, traceMessage, 2, *err)
+		} else {
+			entry = log.entry(log.lastlevel, traceMessage, 2, nil)
 		}
-		// reset in any case
-		log.lasttouch = epoch
+		entry.fields[TraceField] = time.Now().Sub(log.lasttouch)
+		log.handle(entry)
 	}
+	// reset in any case
+	log.lasttouch = epoch
 }
 
 // Debug implements the Logger interface.
@@ -146,27 +156,31 @@ func (log *logger) log(level slf.Level, message string) slf.Tracer {
 	if level < log.rootlogger.minlevel {
 		return noop
 	}
-	log.Lock()
-	defer log.Unlock()
-	log.handle(log.entry(level, message, log.err))
-	log.lasttouch = time.Now()
-	log.lastlevel = level
-	return log
+	return log.checkedlog(level, message)
 }
 
-// Logf implements the Logger interface.
 func (log *logger) logf(format string, level slf.Level, args ...interface{}) slf.Tracer {
 	if level < log.rootlogger.minlevel {
 		return noop
 	}
 	message := fmt.Sprintf(format, args...)
-	return log.log(level, message)
+	return log.checkedlog(level, message)
+}
+
+func (log *logger) checkedlog(level slf.Level, message string) slf.Tracer {
+	log.Lock()
+	defer log.Unlock()
+	log.handle(log.entry(level, message, 4, log.err))
+	log.lasttouch = time.Now()
+	log.lastlevel = level
+	return log
 }
 
 func (log *logger) copy() *logger {
 	res := &logger{
 		rootlogger: log.rootlogger,
 		fields:     make(map[string]interface{}),
+		caller:     log.caller,
 	}
 	for key, value := range log.fields {
 		res.fields[key] = value
@@ -174,10 +188,18 @@ func (log *logger) copy() *logger {
 	return res
 }
 
-func (log *logger) entry(level slf.Level, message string, err error) *entry {
+func (log *logger) entry(level slf.Level, message string, skip int, err error) *entry {
 	fields := make(map[string]interface{})
 	for key, value := range log.fields {
 		fields[key] = value
+	}
+	if log.caller == slf.CallerLong || log.caller == slf.CallerShort {
+		if _, file, line, ok := runtime.Caller(skip); ok {
+			if log.caller == slf.CallerShort {
+				file = path.Base(file)
+			}
+			fields[CallerField] = fmt.Sprintf("%s:%d", file, line)
+		}
 	}
 	return &entry{tm: time.Now(), level: level, message: message, err: err, fields: fields}
 }

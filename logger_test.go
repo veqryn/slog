@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"github.com/ventu-io/slf"
 	"github.com/ventu-io/slog"
+	"path"
+	"strings"
 	"testing"
 	"time"
 )
@@ -228,9 +230,87 @@ func TestLogger_trace_toLowLelel_ignored(t *testing.T) {
 	tracer := logger.Info("test1")
 	<-th.done
 	logger.Debug("void")
-	time.Sleep(time.Millisecond * 100)
+	time.Sleep(time.Millisecond * 500)
 	tracer.Trace(nil)
 	if len(th.entries) != 1 {
 		t.Error("expecting neither debug nor trace")
+	}
+}
+
+func TestLogger_withCallerLong_success(t *testing.T) {
+	th := &testhandler{done: make(chan bool)}
+	f := slog.New()
+	f.AddEntryHandler(th)
+	logger := f.WithContext("test").WithCaller(slf.CallerLong)
+	info := logger.Info("test1")
+	<-th.done
+	info.Trace(nil)
+	<-th.done
+	logger.Infof("test%v", 2)
+	<-th.done
+	logger.Log(slf.LevelInfo, "test3")
+	<-th.done
+	callers := make(map[string]struct{})
+	for _, e := range th.entries {
+		caller := strings.Split(fmt.Sprint(e.Fields()[slog.CallerField]), ":")[0]
+		if !strings.Contains(caller, "logger_test.go") {
+			t.Errorf("expected to contain logger_test.go, %v", caller)
+		}
+		callers[caller] = struct{}{}
+	}
+	if len(callers) != 1 {
+		t.Error("different callers detected")
+	}
+}
+
+func TestLogger_withCallerShort_success(t *testing.T) {
+	th := &testhandler{done: make(chan bool)}
+	f := slog.New()
+	f.AddEntryHandler(th)
+	logger := f.WithContext("test").WithCaller(slf.CallerShort)
+	info := logger.Info("test1")
+	<-th.done
+	info.Trace(nil)
+	<-th.done
+	logger.Infof("test%v", 2)
+	<-th.done
+	logger.Log(slf.LevelInfo, "test3")
+	<-th.done
+	callers := make(map[string]struct{})
+	for _, e := range th.entries {
+		caller := strings.Split(fmt.Sprint(e.Fields()[slog.CallerField]), ":")[0]
+		if caller != "logger_test.go" {
+			t.Errorf("expected to contain logger_test.go, %v", caller)
+		}
+		callers[caller] = struct{}{}
+	}
+	if len(callers) != 1 {
+		t.Error("different callers detected")
+	}
+}
+
+func TestLogger_withCaller_successiveCallOverrides_success(t *testing.T) {
+	th := &testhandler{done: make(chan bool)}
+	f := slog.New()
+	f.AddEntryHandler(th)
+	logger0 := f.WithContext("test").WithCaller(slf.CallerLong)
+	logger1 := logger0.WithCaller(slf.CallerShort)
+	logger2 := logger1.WithCaller(slf.CallerNone)
+	logger0.Info("test0")
+	<-th.done
+	logger1.Info("test1")
+	<-th.done
+	logger2.Info("test2")
+	<-th.done
+	caller := strings.Split(fmt.Sprint(th.entries[0].Fields()[slog.CallerField]), ":")[0]
+	if path.Base(caller) == caller || !strings.Contains(caller, "logger_test.go") {
+		t.Errorf("expected long caller, %v", caller)
+	}
+	caller = strings.Split(fmt.Sprint(th.entries[1].Fields()[slog.CallerField]), ":")[0]
+	if caller != "logger_test.go" {
+		t.Errorf("expected short caller, %v", caller)
+	}
+	if _, ok := th.entries[2].Fields()[slog.CallerField]; ok {
+		t.Error("expected no caller")
 	}
 }
