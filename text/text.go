@@ -5,7 +5,6 @@ package text
 
 import (
 	"fmt"
-	"github.com/apex/log"
 	"github.com/ventu-io/slf"
 	"github.com/ventu-io/slog"
 	"io"
@@ -14,6 +13,7 @@ import (
 	"strings"
 	"text/template"
 	"time"
+	"log"
 )
 
 const (
@@ -144,7 +144,7 @@ func (th *TextHandler) Handle(entry slog.Entry) {
 	}
 	// TODO handle panic
 	if err := th.template.Execute(th.writer, h); err != nil {
-		log.Error(err.Error())
+		log.Print(err.Error())
 	}
 }
 
