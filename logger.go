@@ -16,8 +16,13 @@ import (
 const (
 	// TraceField defined the key for the field to store trace duration.
 	TraceField = "trace"
+
 	// CallerField defines the key for the caller information.
-	CallerField  = "caller"
+	CallerField = "caller"
+
+	// ErrorField can be used by handlers to represent the error in the data field collection.
+	ErrorField = "error"
+
 	traceMessage = "trace"
 )
 

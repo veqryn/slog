@@ -9,7 +9,7 @@ before_install:
   - pip install --user codecov
 
 script:
-  - go test -coverprofile=coverage.txt -covermode=atomic ./...
+  - make get test
 
 after_success:
   - codecov
