@@ -4,21 +4,22 @@
 package slog_test
 
 import (
-	"sync"
-	"github.com/ventu-io/slog"
-	"testing"
-	"time"
 	"errors"
 	"github.com/ventu-io/slf"
+	"github.com/ventu-io/slog"
+	"sync"
+	"testing"
+	"time"
 )
 
 type testhandler struct {
 	entries []slog.Entry
+	err     error
 }
 
 func (th *testhandler) Handle(entry slog.Entry) error {
 	th.entries = append(th.entries, entry)
-	return nil
+	return th.err
 }
 
 func TestVoidHandler_concurrent_performance_1e6Under3s(t *testing.T) {

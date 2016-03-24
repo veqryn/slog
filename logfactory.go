@@ -15,7 +15,7 @@ const (
 	rootLevelKey = "root"
 )
 
-// Logger represents an interface wrapper for the structured logger implementation of SLF.
+// LogFactory represents an interface wrapper for the structured logger implementation of SLF.
 type LogFactory interface {
 	slf.LogFactory
 	SetLevel(level slf.Level, contexts ...string)
@@ -31,7 +31,7 @@ func New() LogFactory {
 		root: rootLogger{
 			minlevel: slf.LevelInfo,
 		},
-		contexts: make(map[string]*logger),
+		contexts:   make(map[string]*logger),
 		concurrent: true,
 	}
 	res.root.factory = res

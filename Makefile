@@ -1,5 +1,5 @@
 EXIT_ON_ERROR = set -e;
-TEST_PACKS = . text
+TEST_PACKS = . basic
 
 .PHONY: get format build check test
 

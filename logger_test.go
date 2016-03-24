@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/ventu-io/slf"
 	"github.com/ventu-io/slog"
+	stdlog "log"
 	"path"
 	"strings"
 	"testing"
@@ -308,5 +309,27 @@ func TestLogger_withCaller_successiveCallOverrides_success(t *testing.T) {
 	}
 	if _, ok := th.entries[2].Fields()[slog.CallerField]; ok {
 		t.Error("expected no caller")
+	}
+}
+
+type stringwriter struct {
+	res string
+}
+
+func (sw *stringwriter) Write(p []byte) (n int, err error) {
+	sw.res = sw.res + string(p)
+	return len(p), nil
+}
+
+func TestLogged_onHandlerError_success(t *testing.T) {
+	th := &testhandler{err: errors.New("boom")}
+	lf := slog.New()
+	lf.AddEntryHandler(th)
+	lf.SetConcurrent(false)
+	wr := &stringwriter{}
+	stdlog.SetOutput(wr)
+	lf.WithContext("test").Info("boom")
+	if !strings.Contains(wr.res, "log handler error: boom") {
+		t.Errorf("expected boom in stdlog, %v", wr.res)
 	}
 }

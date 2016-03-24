@@ -227,6 +227,6 @@ func (log *logger) handleall(entry *entry) {
 func (log *logger) handleone(h EntryHandler, e *entry) {
 	if err := h.Handle(e); err != nil {
 		// fall back to standard logging to output entry handler error
-		stdlog.Printf("entry handle error: %v\n", err.Error())
+		stdlog.Printf("log handler error: %v\n", err.Error())
 	}
 }
