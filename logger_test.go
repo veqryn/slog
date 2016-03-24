@@ -15,28 +15,29 @@ import (
 )
 
 func TestLogger_genericLog_success(t *testing.T) {
-	th := &testhandler{done: make(chan bool)}
-	f := slog.New()
-	f.AddEntryHandler(th)
-	logger := f.WithContext("ctx")
+	th := &testhandler{}
+	lf := slog.New()
+	lf.AddEntryHandler(th)
+	lf.SetConcurrent(false)
+
+	logger := lf.WithContext("ctx")
 	logger.Log(slf.LevelDebug, "ignored")
 	logger.Log(slf.LevelError, "output")
-	<-th.done
 	if len(th.entries) != 1 {
 		t.Errorf("expected only error output, %v", th.entries)
 	}
 }
 
 func TestLogger_withField_copies_success(t *testing.T) {
-	th := &testhandler{done: make(chan bool)}
-	f := slog.New()
-	f.AddEntryHandler(th)
-	logger0 := f.WithContext("ctx")
+	th := &testhandler{}
+	lf := slog.New()
+	lf.AddEntryHandler(th)
+	lf.SetConcurrent(false)
+
+	logger0 := lf.WithContext("ctx")
 	logger1 := logger0.WithField("key", 256)
 	logger0.Info("logger0")
-	<-th.done
 	logger1.Info("logger1")
-	<-th.done
 	if th.entries[0].Fields()[slog.ContextField] != "ctx" || th.entries[1].Fields()[slog.ContextField] != "ctx" {
 		t.Error("expected ctx context in both cases")
 	}
@@ -49,17 +50,15 @@ func TestLogger_withField_copies_success(t *testing.T) {
 }
 
 func TestLogger_withFields_copies_success(t *testing.T) {
-	th := &testhandler{done: make(chan bool)}
-	f := slog.New()
-	f.AddEntryHandler(th)
-	logger0 := f.WithContext("ctx")
-	logger1 := logger0.WithFields(slf.Fields{
-		"key": 256,
-	})
+	th := &testhandler{}
+	lf := slog.New()
+	lf.AddEntryHandler(th)
+	lf.SetConcurrent(false)
+
+	logger0 := lf.WithContext("ctx")
+	logger1 := logger0.WithFields(slf.Fields{"key": 256})
 	logger0.Warn("logger0")
-	<-th.done
 	logger1.Warn("logger1")
-	<-th.done
 	if th.entries[0].Fields()[slog.ContextField] != "ctx" || th.entries[1].Fields()[slog.ContextField] != "ctx" {
 		t.Error("expected ctx context in both cases")
 	}
@@ -72,12 +71,13 @@ func TestLogger_withFields_copies_success(t *testing.T) {
 }
 
 func TestLogger_withError_copies_success(t *testing.T) {
-	th := &testhandler{done: make(chan bool)}
-	f := slog.New()
-	f.AddEntryHandler(th)
-	logger := f.WithContext("ctx")
+	th := &testhandler{}
+	lf := slog.New()
+	lf.AddEntryHandler(th)
+	lf.SetConcurrent(false)
+
+	logger := lf.WithContext("ctx")
 	logger.Error("test0")
-	<-th.done
 	if th.entries[0].Error() != nil {
 		t.Error("no error expected")
 	}
@@ -86,7 +86,6 @@ func TestLogger_withError_copies_success(t *testing.T) {
 	}
 	th.entries = nil
 	logger.WithField("key", 256).WithError(errors.New("error2")).Warn("warn2")
-	<-th.done
 	if th.entries[0].Error() == nil {
 		t.Error("error expected")
 	}
@@ -99,33 +98,32 @@ func TestLogger_withError_copies_success(t *testing.T) {
 }
 
 func TestLogger_setLevel_affectsDerivedLogger_success(t *testing.T) {
-	th := &testhandler{done: make(chan bool)}
-	f := slog.New()
-	f.AddEntryHandler(th)
-	logger0 := f.WithContext("ctx")
+	th := &testhandler{}
+	lf := slog.New()
+	lf.AddEntryHandler(th)
+	lf.SetConcurrent(false)
+
+	logger0 := lf.WithContext("ctx")
 	logger1 := logger0.WithField("key", 256)
-	f.SetLevel(slf.LevelDebug)
+	lf.SetLevel(slf.LevelDebug)
 	logger0.Debug("debug0")
-	<-th.done
 	logger1.Debug("debug1")
-	<-th.done
 	if len(th.entries) != 2 {
 		t.Error("expected 2 records")
 	}
 }
 
 func TestLogger_formatting_success(t *testing.T) {
-	th := &testhandler{done: make(chan bool)}
-	f := slog.New()
-	f.AddEntryHandler(th)
-	logger := f.WithContext("test")
+	th := &testhandler{}
+	lf := slog.New()
+	lf.AddEntryHandler(th)
+	lf.SetConcurrent(false)
+
+	logger := lf.WithContext("test")
 	logger.Debugf("debug%v", 0)
 	logger.WithField("key", 256).Infof("info%v", 1)
-	<-th.done
 	logger.WithFields(slf.Fields{"key": 256}).Warnf("warn%v", 2)
-	<-th.done
 	logger.WithError(errors.New("error")).Errorf("error%v", 3)
-	<-th.done
 	if len(th.entries) != 3 {
 		t.Error("expected info, warn and error")
 	}
@@ -140,11 +138,12 @@ func TestLogger_panic_success(t *testing.T) {
 			t.Error("expected panic")
 		}
 	}()
-	th := &testhandler{done: make(chan bool)}
-	f := slog.New()
-	f.AddEntryHandler(th)
-	f.WithContext("test").Panic("cause panic")
-	<-th.done
+	th := &testhandler{}
+	lf := slog.New()
+	lf.AddEntryHandler(th)
+	lf.SetConcurrent(false)
+
+	lf.WithContext("test").Panic("cause panic")
 	if th.entries[0].Message() != "cause panic" {
 		t.Error("mesage not preserved")
 	}
@@ -156,28 +155,28 @@ func TestLogger_panicf_success(t *testing.T) {
 			t.Error("expected panic")
 		}
 	}()
-	th := &testhandler{done: make(chan bool)}
-	f := slog.New()
-	f.AddEntryHandler(th)
-	f.WithContext("test").Panicf("cause %v", "panic")
-	<-th.done
+	th := &testhandler{}
+	lf := slog.New()
+	lf.AddEntryHandler(th)
+	lf.SetConcurrent(false)
+
+	lf.WithContext("test").Panicf("cause %v", "panic")
 	if th.entries[0].Message() != "cause panic" {
 		t.Error("mesage not preserved")
 	}
 }
 
 func TestLogger_trace_success(t *testing.T) {
-	th := &testhandler{done: make(chan bool)}
-	f := slog.New()
-	f.AddEntryHandler(th)
-	logger := f.WithContext("test")
+	th := &testhandler{}
+	lf := slog.New()
+	lf.AddEntryHandler(th)
+	lf.SetConcurrent(false)
+
+	logger := lf.WithContext("test")
 	tracer := logger.Info("test1")
-	<-th.done
 	logger.Error("test2")
-	<-th.done
 	time.Sleep(time.Millisecond * 100)
 	tracer.Trace(nil)
-	<-th.done
 	if len(th.entries) != 3 {
 		t.Error("expected 3 entries")
 	}
@@ -198,15 +197,15 @@ func TestLogger_trace_success(t *testing.T) {
 
 func TestLogger_trace_withError_overwrites(t *testing.T) {
 	err := errors.New("error0")
-	th := &testhandler{done: make(chan bool)}
-	f := slog.New()
-	f.AddEntryHandler(th)
-	logger := f.WithContext("test").WithError(errors.New("error1"))
+	th := &testhandler{}
+	lf := slog.New()
+	lf.AddEntryHandler(th)
+	lf.SetConcurrent(false)
+
+	logger := lf.WithContext("test").WithError(errors.New("error1"))
 	tracer := logger.Info("test1")
-	<-th.done
 	time.Sleep(time.Millisecond * 100)
 	tracer.Trace(&err)
-	<-th.done
 	if len(th.entries) != 2 {
 		t.Error("expected 2 entries")
 	}
@@ -222,34 +221,34 @@ func TestLogger_trace_withError_overwrites(t *testing.T) {
 	}
 }
 
-func TestLogger_trace_toLowLelel_ignored(t *testing.T) {
-	th := &testhandler{done: make(chan bool)}
-	f := slog.New()
-	f.AddEntryHandler(th)
-	logger := f.WithContext("test").WithError(errors.New("error1"))
+func TestLogger_trace_reusingLogger_doesNotAffectTrace_success(t *testing.T) {
+	th := &testhandler{}
+	lf := slog.New()
+	lf.AddEntryHandler(th)
+	lf.SetConcurrent(false)
+
+	logger := lf.WithContext("test").WithError(errors.New("error1"))
 	tracer := logger.Info("test1")
-	<-th.done
 	logger.Debug("void")
-	time.Sleep(time.Millisecond * 500)
+	time.Sleep(time.Millisecond * 50)
 	tracer.Trace(nil)
-	if len(th.entries) != 1 {
-		t.Error("expecting neither debug nor trace")
+
+	if len(th.entries) != 2 {
+		t.Errorf("expected info and trace, %v", th.entries)
 	}
 }
 
 func TestLogger_withCallerLong_success(t *testing.T) {
-	th := &testhandler{done: make(chan bool)}
-	f := slog.New()
-	f.AddEntryHandler(th)
-	logger := f.WithContext("test").WithCaller(slf.CallerLong)
+	th := &testhandler{}
+	lf := slog.New()
+	lf.AddEntryHandler(th)
+	lf.SetConcurrent(false)
+
+	logger := lf.WithContext("test").WithCaller(slf.CallerLong)
 	info := logger.Info("test1")
-	<-th.done
 	info.Trace(nil)
-	<-th.done
 	logger.Infof("test%v", 2)
-	<-th.done
 	logger.Log(slf.LevelInfo, "test3")
-	<-th.done
 	callers := make(map[string]struct{})
 	for _, e := range th.entries {
 		caller := strings.Split(fmt.Sprint(e.Fields()[slog.CallerField]), ":")[0]
@@ -264,18 +263,16 @@ func TestLogger_withCallerLong_success(t *testing.T) {
 }
 
 func TestLogger_withCallerShort_success(t *testing.T) {
-	th := &testhandler{done: make(chan bool)}
-	f := slog.New()
-	f.AddEntryHandler(th)
-	logger := f.WithContext("test").WithCaller(slf.CallerShort)
+	th := &testhandler{}
+	lf := slog.New()
+	lf.AddEntryHandler(th)
+	lf.SetConcurrent(false)
+
+	logger := lf.WithContext("test").WithCaller(slf.CallerShort)
 	info := logger.Info("test1")
-	<-th.done
 	info.Trace(nil)
-	<-th.done
 	logger.Infof("test%v", 2)
-	<-th.done
 	logger.Log(slf.LevelInfo, "test3")
-	<-th.done
 	callers := make(map[string]struct{})
 	for _, e := range th.entries {
 		caller := strings.Split(fmt.Sprint(e.Fields()[slog.CallerField]), ":")[0]
@@ -290,18 +287,17 @@ func TestLogger_withCallerShort_success(t *testing.T) {
 }
 
 func TestLogger_withCaller_successiveCallOverrides_success(t *testing.T) {
-	th := &testhandler{done: make(chan bool)}
-	f := slog.New()
-	f.AddEntryHandler(th)
-	logger0 := f.WithContext("test").WithCaller(slf.CallerLong)
+	th := &testhandler{}
+	lf := slog.New()
+	lf.AddEntryHandler(th)
+	lf.SetConcurrent(false)
+
+	logger0 := lf.WithContext("test").WithCaller(slf.CallerLong)
 	logger1 := logger0.WithCaller(slf.CallerShort)
 	logger2 := logger1.WithCaller(slf.CallerNone)
 	logger0.Info("test0")
-	<-th.done
 	logger1.Info("test1")
-	<-th.done
 	logger2.Info("test2")
-	<-th.done
 	caller := strings.Split(fmt.Sprint(th.entries[0].Fields()[slog.CallerField]), ":")[0]
 	if path.Base(caller) == caller || !strings.Contains(caller, "logger_test.go") {
 		t.Errorf("expected long caller, %v", caller)

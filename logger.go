@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ventu-io/slf"
+	stdlog "log"
 	"path"
 	"runtime"
 	"sync"
@@ -31,18 +32,18 @@ var (
 	epoch = time.Time{}
 )
 
-// rootlogger represents a root logger for a context, all other loggers in the same context
+// rootLogger represents a root logger for a context, all other loggers in the same context
 // (with different fields) contain this one to identify the log level and entry handlers.
-type rootlogger struct {
+type rootLogger struct {
 	minlevel slf.Level
-	provider *factory
+	factory  *logFactory
 }
 
 // logger represents a logger in the context. It is created from the rootlogger by copying its
 // fields. "Fields" access is not directly synchronised because fields are written on copy only,
 // however it is synchronised indirectly to guarantee timestamp for tracing.
 type logger struct {
-	*rootlogger
+	*rootLogger
 	sync.Mutex
 	fields    map[string]interface{}
 	caller    slf.CallerInfo
@@ -75,7 +76,7 @@ func (log *logger) WithCaller(caller slf.CallerInfo) slf.StructuredLogger {
 }
 
 // WithError implements the Logger interface.
-func (log *logger) WithError(err error) slf.BasicLogger {
+func (log *logger) WithError(err error) slf.Logger {
 	res := log.copy()
 	res.err = err
 	return res
@@ -90,7 +91,7 @@ func (log *logger) Log(level slf.Level, message string) slf.Tracer {
 func (log *logger) Trace(err *error) {
 	log.Lock()
 	defer log.Unlock()
-	if log.lasttouch != epoch && log.lastlevel >= log.rootlogger.minlevel {
+	if log.lasttouch != epoch && log.lastlevel >= log.rootLogger.minlevel {
 		var entry *entry
 		if err != nil {
 			entry = log.entry(log.lastlevel, traceMessage, 2, *err)
@@ -98,7 +99,7 @@ func (log *logger) Trace(err *error) {
 			entry = log.entry(log.lastlevel, traceMessage, 2, nil)
 		}
 		entry.fields[TraceField] = time.Now().Sub(log.lasttouch)
-		log.handle(entry)
+		log.handleall(entry)
 	}
 	// reset in any case
 	log.lasttouch = epoch
@@ -158,14 +159,14 @@ func (log *logger) Panicf(format string, args ...interface{}) {
 
 // Log implements the Logger interface.
 func (log *logger) log(level slf.Level, message string) slf.Tracer {
-	if level < log.rootlogger.minlevel {
+	if level < log.rootLogger.minlevel {
 		return noop
 	}
 	return log.checkedlog(level, message)
 }
 
 func (log *logger) logf(format string, level slf.Level, args ...interface{}) slf.Tracer {
-	if level < log.rootlogger.minlevel {
+	if level < log.rootLogger.minlevel {
 		return noop
 	}
 	message := fmt.Sprintf(format, args...)
@@ -175,7 +176,7 @@ func (log *logger) logf(format string, level slf.Level, args ...interface{}) slf
 func (log *logger) checkedlog(level slf.Level, message string) slf.Tracer {
 	log.Lock()
 	defer log.Unlock()
-	log.handle(log.entry(level, message, 4, log.err))
+	log.handleall(log.entry(level, message, 4, log.err))
 	log.lasttouch = time.Now()
 	log.lastlevel = level
 	return log
@@ -183,7 +184,7 @@ func (log *logger) checkedlog(level slf.Level, message string) slf.Tracer {
 
 func (log *logger) copy() *logger {
 	res := &logger{
-		rootlogger: log.rootlogger,
+		rootLogger: log.rootLogger,
 		fields:     make(map[string]interface{}),
 		caller:     log.caller,
 	}
@@ -209,9 +210,23 @@ func (log *logger) entry(level slf.Level, message string, skip int, err error) *
 	return &entry{tm: time.Now(), level: level, message: message, err: err, fields: fields}
 }
 
-func (log *logger) handle(entry *entry) {
+func (log *logger) handleall(entry *entry) {
 	// unsafe wrt changing handlers (those should be initialized up front)
-	for _, handler := range log.rootlogger.provider.handlers {
-		go handler.Handle(entry)
+	for _, handler := range log.rootLogger.factory.handlers {
+		if log.factory.concurrent {
+			go log.handleone(handler, entry)
+		} else {
+			log.handleone(handler, entry)
+		}
+	}
+	if log.factory.concurrent {
+		runtime.Gosched()
+	}
+}
+
+func (log *logger) handleone(h EntryHandler, e *entry) {
+	if err := h.Handle(e); err != nil {
+		// fall back to standard logging to output entry handler error
+		stdlog.Printf("entry handle error: %v\n", err.Error())
 	}
 }

@@ -13,7 +13,7 @@ type EntryHandler interface {
 
 	// Handle processes a filtered log entry (must not write to the entry field map, which is
 	// read concurrently by all handlers).
-	Handle(Entry)
+	Handle(Entry) error
 }
 
 // Entry represents a log entry for structured logging. Entries are only created when the requested

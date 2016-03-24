@@ -12,11 +12,12 @@ import (
 )
 
 func TestEntry_containsAllData_success(t *testing.T) {
-	th := &testhandler{done: make(chan bool)}
-	f := slog.New()
-	f.AddEntryHandler(th)
-	f.WithContext("test").WithField("key", 256).WithError(errors.New("error1")).Error("error2")
-	<-th.done
+	th := &testhandler{}
+	lf := slog.New()
+	lf.AddEntryHandler(th)
+	lf.SetConcurrent(false)
+
+	lf.WithContext("test").WithField("key", 256).WithError(errors.New("error1")).Error("error2")
 	if len(th.entries) != 1 {
 		t.Error("unexpected entries")
 	}

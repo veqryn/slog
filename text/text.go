@@ -8,12 +8,13 @@ import (
 	"github.com/ventu-io/slf"
 	"github.com/ventu-io/slog"
 	"io"
+	"log"
 	"os"
 	"sort"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
-	"log"
 )
 
 const (
@@ -40,6 +41,7 @@ type Holder struct {
 }
 
 type TextHandler struct {
+	sync.Mutex
 	writer      io.Writer
 	colors      map[slf.Level]int
 	templateStr string
@@ -98,7 +100,7 @@ func tostr(level slf.Level) string {
 	}
 }
 
-func (th *TextHandler) Handle(entry slog.Entry) {
+func (th *TextHandler) Handle(entry slog.Entry) error {
 	level := tostr(entry.Level())
 	context, ok := entry.Fields()[slog.ContextField]
 	if !ok {
@@ -142,10 +144,14 @@ func (th *TextHandler) Handle(entry slog.Entry) {
 		Fields:  strings.Join(fields, "; "),
 		Color:   color,
 	}
-	// TODO handle panic
-	if err := th.template.Execute(th.writer, h); err != nil {
-		log.Print(err.Error())
-	}
+	th.Lock()
+	defer func() {
+		th.Unlock()
+		if r := recover(); r != nil {
+			log.Print(r)
+		}
+	}()
+	return th.template.Execute(th.writer, h)
 }
 
 type fieldpair struct {
