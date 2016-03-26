@@ -4,6 +4,7 @@
 package json_test
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/ventu-io/slf"
 	"github.com/ventu-io/slog"
@@ -123,7 +124,7 @@ func TestJSON_withCaller_success(t *testing.T) {
 	if !strings.Contains(sw.res, `{"timestamp":"`) {
 		t.Errorf("unexpected json, %v", sw.res)
 	}
-	if !strings.Contains(sw.res, `","level":"INFO","message":"info=26","error":null,"fields":{"caller":"handler_test.go:116","context":"json"}}`) {
+	if !strings.Contains(sw.res, `","level":"INFO","message":"info=26","error":null,"fields":{"caller":"handler_test.go:117","context":"json"}}`) {
 		t.Errorf("unexpected json, %v", sw.res)
 	}
 }
@@ -221,5 +222,30 @@ func TestHandler_timeformat_success(t *testing.T) {
 
 	if !strings.Contains(sw.res, time.Now().Format("2006-01-02")) {
 		t.Errorf("expected to find today's date, %v", sw.res)
+	}
+}
+
+func TestHandler_EOL_success(t *testing.T) {
+	lf := slog.New()
+	i := &interceptor{entry: make(chan slog.Entry, 1)}
+	lf.AddEntryHandler(i)
+	lf.SetConcurrent(false)
+
+	f := make(map[string]interface{})
+	f["A"] = 25
+
+	lf.WithContext("json").WithField("F", f).Infof("info=%v", 26)
+
+	sw := &stringwriter{}
+	h := json.New(sw)
+	h.SetAddingEOL(true)
+	if err := h.Handle(<-i.entry); err != nil {
+		t.Error(err)
+	}
+	if !strings.Contains(sw.res, `"fields":{"F":{"A":25},"context":"json"}}`) {
+		t.Errorf("unexpected json, %v", sw.res)
+	}
+	if bytes.LastIndexByte([]byte(sw.res), byte(10)) < 0 {
+		t.Errorf("no EOL, %v", sw.res)
 	}
 }

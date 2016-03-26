@@ -14,15 +14,16 @@ import (
 
 // TODO add handing log in batches (on size or time interval)
 
-const (
-	// StandardTimeFormat represents the time format used in the handler by default.
-	StandardTimeFormat = "2006-01-02T15:04:05.0000"
-)
+// StandardTimeFormat represents the time format used in the handler by default.
+const StandardTimeFormat = "2006-01-02T15:04:05.0000"
+
+var eol byte = 10
 
 // Handler represents a JSON log entry handler formatting JSON into the given Writer.
 type Handler struct {
 	writer        io.Writer
 	timeFormatStr string
+	addEOL        bool
 }
 
 // New constructs a JSON handler formatting JSON into the given Writer.
@@ -36,6 +37,13 @@ func New(w io.Writer) *Handler {
 // SetTimeFormat defines the formatting of time used for output into JSON.
 func (h *Handler) SetTimeFormat(f string) {
 	h.timeFormatStr = f
+}
+
+// SetAddingEOL defines whether an EOL character should be output to the writer after each JSON
+// log entry output (default: false as the writer is assumed to be a JSON consumer rather than
+// a plain vanilla writer).
+func (h *Handler) SetAddingEOL(eol bool) {
+	h.addEOL = eol
 }
 
 type jsonentry struct {
@@ -65,6 +73,9 @@ func (h *Handler) Handle(e slog.Entry) (err error) {
 	s, err := json.Marshal(je)
 	if err != nil {
 		return err
+	}
+	if h.addEOL {
+		s = append(s, eol)
 	}
 	n, err := h.writer.Write(s)
 	if err != nil {
