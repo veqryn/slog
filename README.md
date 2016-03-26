@@ -1,7 +1,7 @@
 
 [![Build status][buildimage]][build] [![Coverage][codecovimage]][codecov] [![GoReportCard][cardimage]][card] [![API documentation][docsimage]][docs]
 
-# The reference ([SLF][slf]) implementation for Go 
+# The reference [SLF][slf] implementation for Go 
 
 The module `ventu-io/slog` provides a reference implementation of the structured logging facade ([SLF][slf]) for Go. The following are the main characteristics of this implementation:
 
