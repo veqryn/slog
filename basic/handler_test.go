@@ -35,7 +35,7 @@ func TestHandler_basicOperation_success(t *testing.T) {
 	lf.WithContext("test").WithField("A", 24).Info("done1")
 	// XXX the check below assumes next line is No 37
 	lf.WithContext("test").WithFields(slf.Fields{"B": 26, "A": 25}).WithCaller(slf.CallerShort).WithError(errors.New("some error")).Warn("done2")
-	if !strings.Contains(wr.res, " [INFO] test: done1 A=24\n") || !strings.Contains(wr.res, " [WARN] test (basic_test.go:37): done2 (error: some error) A=25; B=26\n") {
+	if !strings.Contains(wr.res, " [INFO] test: done1 A=24\n") || !strings.Contains(wr.res, " [WARN] test (handler_test.go:37): done2 (error: some error) A=25; B=26\n") {
 		t.Errorf("no match, %v", wr.res)
 	}
 }
@@ -54,7 +54,7 @@ func TestHandler_basicOperation_termTemplate_success(t *testing.T) {
 	if !strings.Contains(wr.res, " [\033[32mINFO\033[0m] test: done1 A=24\n") {
 		t.Errorf("no match, %v", wr.res)
 	}
-	if !strings.Contains(wr.res, " [\033[33mWARN\033[0m] test (basic_test.go:53): done2 (\033[31merror: some error\033[0m) A=25; B=26\n") {
+	if !strings.Contains(wr.res, " [\033[33mWARN\033[0m] test (handler_test.go:53): done2 (\033[31merror: some error\033[0m) A=25; B=26\n") {
 		t.Errorf("no match, %v", wr.res)
 	}
 }
