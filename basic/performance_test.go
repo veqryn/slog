@@ -26,7 +26,7 @@ func (vw *voidwriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func TestPerformance(t *testing.T) {
+func TestBasic_perf_withVoidWriter_1e6Under5s(t *testing.T) {
 	lf := slog.New()
 	h := basic.New()
 	wr := &voidwriter{0, 1000000, make(chan bool)}

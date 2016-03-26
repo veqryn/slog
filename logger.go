@@ -10,7 +10,6 @@ import (
 	stdlog "log"
 	"path"
 	"runtime"
-	"sync"
 	"time"
 )
 
@@ -44,10 +43,11 @@ type rootLogger struct {
 // however it is synchronised indirectly to guarantee timestamp for tracing.
 type logger struct {
 	*rootLogger
-	sync.Mutex
-	fields    map[string]interface{}
-	caller    slf.CallerInfo
-	err       error
+	// not synced because ro outside of construction in with*
+	fields map[string]interface{}
+	caller slf.CallerInfo
+	err    error
+	// not synced
 	lasttouch time.Time
 	lastlevel slf.Level
 }
@@ -89,19 +89,18 @@ func (log *logger) Log(level slf.Level, message string) slf.Tracer {
 
 // Trace implements the Logger interface.
 func (log *logger) Trace(err *error) {
-	log.Lock()
-	defer log.Unlock()
-	if log.lasttouch != epoch && log.lastlevel >= log.rootLogger.minlevel {
+	lasttouch := log.lasttouch
+	level := log.lastlevel
+	if lasttouch != epoch && level >= log.rootLogger.minlevel {
 		var entry *entry
 		if err != nil {
-			entry = log.entry(log.lastlevel, traceMessage, 2, *err)
+			entry = log.entry(level, traceMessage, 2, *err)
 		} else {
-			entry = log.entry(log.lastlevel, traceMessage, 2, nil)
+			entry = log.entry(level, traceMessage, 2, nil)
 		}
-		entry.fields[TraceField] = time.Now().Sub(log.lasttouch)
+		entry.fields[TraceField] = time.Now().Sub(lasttouch)
 		log.handleall(entry)
 	}
-	// reset in any case
 	log.lasttouch = epoch
 }
 
@@ -174,8 +173,6 @@ func (log *logger) logf(format string, level slf.Level, args ...interface{}) slf
 }
 
 func (log *logger) checkedlog(level slf.Level, message string) slf.Tracer {
-	log.Lock()
-	defer log.Unlock()
 	log.handleall(log.entry(level, message, 4, log.err))
 	log.lasttouch = time.Now()
 	log.lastlevel = level
@@ -211,8 +208,13 @@ func (log *logger) entry(level slf.Level, message string, skip int, err error) *
 }
 
 func (log *logger) handleall(entry *entry) {
-	// unsafe wrt changing handlers (those should be initialized up front)
-	for _, handler := range log.rootLogger.factory.handlers {
+	f := log.rootLogger.factory
+	f.RLock()
+	handlers := make([]EntryHandler, len(f.handlers))
+	copy(handlers, f.handlers)
+	f.RUnlock()
+
+	for _, handler := range handlers {
 		if log.factory.concurrent {
 			go log.handleone(handler, entry)
 		} else {

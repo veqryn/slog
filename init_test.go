@@ -7,6 +7,8 @@ import (
 	"errors"
 	"github.com/ventu-io/slf"
 	"github.com/ventu-io/slog"
+	"math/rand"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -22,11 +24,11 @@ func (th *testhandler) Handle(entry slog.Entry) error {
 	return th.err
 }
 
-func TestVoidHandler_concurrent_performance_1e6Under3s(t *testing.T) {
+func TestVoidHandler_concurrent_performance_1e6Under4s(t *testing.T) {
 	testperformance(t, true)
 }
 
-func TestVoidHandler_nonconcurrent_performance_1e6Under3s(t *testing.T) {
+func TestVoidHandler_nonconcurrent_performance_1e6Under4s(t *testing.T) {
 	testperformance(t, false)
 }
 
@@ -51,8 +53,27 @@ func testperformance(t *testing.T, concurrent bool) {
 	go log250k(logger2)
 	go log250k(logger3)
 	<-h.done
-	if time.Now().Sub(start) >= time.Second*3 {
-		t.Error("logging 1mil records into void handler took more than 3s")
+	if time.Now().Sub(start) >= time.Second*4 {
+		t.Error("logging 1mil records into void handler took more than 4s")
+	}
+}
+
+func TestVoidHandler_concurrent_contextAqcuisition_1e6Under4s(t *testing.T) {
+	start := time.Now()
+	h := &perfhandler{done: make(chan bool)}
+	lf := slog.New()
+	lf.AddEntryHandler(h)
+	log50k := func() {
+		for i := 0; i < 50000; i++ {
+			lf.WithContext(strconv.Itoa(rand.Intn(10000))).Infof("i=%v", i)
+		}
+	}
+	for i := 0; i < 20; i++ {
+		go log50k()
+	}
+	<-h.done
+	if time.Now().Sub(start) >= time.Second*4 {
+		t.Error("logging 1mil records into void handler took more than 4s")
 	}
 }
 

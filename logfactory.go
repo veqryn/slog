@@ -10,12 +10,13 @@ import (
 )
 
 const (
-	// ContextField defines the field to store context.
+	// ContextField defines the field name to store context.
 	ContextField = "context"
 	rootLevelKey = "root"
 )
 
-// LogFactory represents an interface wrapper for the structured logger implementation of SLF.
+// LogFactory extends the SLF LogFactory interface with a series of methods specific to the slog
+// implementation.
 type LogFactory interface {
 	slf.LogFactory
 	SetLevel(level slf.Level, contexts ...string)
@@ -40,7 +41,7 @@ func New() LogFactory {
 
 // factory implements the slog.Logger interface.
 type logFactory struct {
-	sync.Mutex
+	sync.RWMutex
 	root       rootLogger
 	contexts   map[string]*logger
 	handlers   []EntryHandler
@@ -49,13 +50,9 @@ type logFactory struct {
 
 // WithContext delivers a logger for the given context (reusing loggers for the same context).
 func (lf *logFactory) WithContext(context string) slf.StructuredLogger {
-	lf.Lock()
-	defer lf.Unlock()
-	return lf.withContext(context)
-}
-
-func (lf *logFactory) withContext(context string) *logger {
+	lf.RLock()
 	ctx, ok := lf.contexts[context]
+	lf.RUnlock()
 	if ok {
 		return ctx
 	}
@@ -65,27 +62,32 @@ func (lf *logFactory) withContext(context string) *logger {
 		rootLogger: &rootLogger{minlevel: lf.root.minlevel, factory: lf.root.factory},
 		fields:     fields,
 	}
+	lf.Lock()
 	lf.contexts[context] = ctx
+	lf.Unlock()
 	return ctx
 }
 
 // SetLevel sets the logging slf.Level to given contexts, all loggers if no context given, or the root
 // logger when context defined as "root".
 func (lf *logFactory) SetLevel(level slf.Level, contexts ...string) {
-	lf.Lock()
-	defer lf.Unlock()
+	// set on all current and root
 	if len(contexts) == 0 {
 		lf.root.minlevel = level
+		lf.Lock()
 		for _, logger := range lf.contexts {
 			logger.rootLogger.minlevel = level
 		}
-	} else {
-		for _, context := range contexts {
-			if strings.ToLower(context) != rootLevelKey {
-				lf.withContext(context).rootLogger.minlevel = level
-			} else {
-				lf.root.minlevel = level
-			}
+		lf.Unlock()
+		return
+	}
+	// setting on given only
+	for _, context := range contexts {
+		if strings.ToLower(context) != rootLevelKey {
+			logger, _ := lf.WithContext(context).(*logger) // locks internally
+			logger.rootLogger.minlevel = level
+		} else {
+			lf.root.minlevel = level
 		}
 	}
 }
@@ -94,22 +96,26 @@ func (lf *logFactory) SetLevel(level slf.Level, contexts ...string) {
 // log slf.Level. Unsafe if called while logging is already being performed, thus should be called
 // at the initialisation time only.
 func (lf *logFactory) AddEntryHandler(handler EntryHandler) {
+	lf.Lock()
 	lf.handlers = append(lf.handlers, handler)
+	lf.Unlock()
 }
 
 // SetEntryHandlers overwrites existing entry handlers with a new set.
 func (lf *logFactory) SetEntryHandlers(handlers ...EntryHandler) {
+	lf.Lock()
 	lf.handlers = append([]EntryHandler{}, handlers...)
+	lf.Unlock()
 }
 
 // Contexts returns all defined root logging contexts.
 func (lf *logFactory) Contexts() map[string]slf.StructuredLogger {
 	res := make(map[string]slf.StructuredLogger)
-	lf.Lock()
-	defer lf.Unlock()
+	lf.RLock()
 	for key, val := range lf.contexts {
 		res[key] = val
 	}
+	lf.RUnlock()
 	return res
 }
 
