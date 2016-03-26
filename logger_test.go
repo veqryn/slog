@@ -333,3 +333,24 @@ func TestLogged_onHandlerError_success(t *testing.T) {
 		t.Errorf("expected boom in stdlog, %v", wr.res)
 	}
 }
+
+func TestLogger_deferTrace_success(t *testing.T) {
+	func() (err error) {
+		th := &testhandler{}
+		lf := slog.New()
+		lf.AddEntryHandler(th)
+		lf.SetConcurrent(false)
+
+		defer func() {
+			if len(th.entries) != 2 {
+				t.Errorf("expected only error output, %v", th.entries)
+			}
+			if th.entries[1].Error().Error() != "error2" {
+				t.Errorf("expecting error2, %v", th.entries[1].Error().Error())
+			}
+		}()
+
+		defer lf.WithContext("ctx").Info("test").Trace(&err)
+		return fmt.Errorf("error2")
+	}()
+}
