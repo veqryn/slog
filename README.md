@@ -19,28 +19,28 @@ More handlers will follow in due course.
 
 The factory API is fairly straightforward and self explanatory. It is based on the `slf.LogFactory` adding just a few convenience method to set the level and define handers:
 
-		type LogFactory interface {
-				slf.LogFactory
+    type LogFactory interface {
+        slf.LogFactory
 
-				// SetLevel sets the logging slf.Level to given contexts, all loggers if no 
-				// context given, or the root logger when context defined as "root".
-				SetLevel(level slf.Level, contexts ...string)
+        // SetLevel sets the logging slf.Level to given contexts, all loggers if no 
+        // context given, or the root logger when context defined as "root".
+        SetLevel(level slf.Level, contexts ...string)
 
-				// AddEntryHandler adds a handler for log entries that are logged at or above 
-				// the set log slf.Level.
-				AddEntryHandler(handler EntryHandler)
+        // AddEntryHandler adds a handler for log entries that are logged at or above 
+        // the set log slf.Level.
+        AddEntryHandler(handler EntryHandler)
 
-				// SetEntryHandlers sets a collection of handlers for log entries that are logged 
-				// at or above the set log slf.Level.
-				SetEntryHandlers(handlers ...EntryHandler)
+        // SetEntryHandlers sets a collection of handlers for log entries that are logged 
+        // at or above the set log slf.Level.
+        SetEntryHandlers(handlers ...EntryHandler)
 
-				// Contexts retruns the currently defined collection of context loggers.
-				Contexts() map[string]slf.StructuredLogger
+        // Contexts retruns the currently defined collection of context loggers.
+        Contexts() map[string]slf.StructuredLogger
 
-				// SetConcurrent toggles concurrent execution of handler methods on log entries. 
-				// Default is to log each entry with each handler in a separate goroutine.
-				SetConcurrent(conc bool)
-		}
+        // SetConcurrent toggles concurrent execution of handler methods on log entries. 
+        // Default is to log each entry with each handler in a separate goroutine.
+        SetConcurrent(conc bool)
+    }
 
 ## Usage 
 
@@ -87,7 +87,7 @@ Given the above setup the log output of the application can look like this:
 
         17:41:14.551 [WARN] probe.agent.task.Subscribe: Error while subscribing. Retrying in 30s (error: read: connection reset by peer)
 
-
+	 ![Basic output example][coloured]
 
 ## License
 
@@ -111,3 +111,4 @@ Distributed under a MIT style license found in the [LICENSE][license] file.
 [license]: https://github.com/ventu-io/slog/blob/master/LICENSE
 
 [slf]: https://github.com/ventu-io/slf
+[coloured]: https://raw.githubusercontent.com/ventu-io/slog/master/basic/coloured-basic-output.png
