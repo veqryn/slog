@@ -93,8 +93,7 @@ func (lf *logFactory) SetLevel(level slf.Level, contexts ...string) {
 }
 
 // AddEntryHandler adds a handler for log entries that are logged at or above the set
-// log slf.Level. Unsafe if called while logging is already being performed, thus should be called
-// at the initialisation time only.
+// log slf.Level.
 func (lf *logFactory) AddEntryHandler(handler EntryHandler) {
 	lf.Lock()
 	lf.handlers = append(lf.handlers, handler)
