@@ -11,6 +11,7 @@ import (
 	"path"
 	"runtime"
 	"time"
+	"sync"
 )
 
 const (
@@ -214,15 +215,21 @@ func (log *logger) handleall(entry *entry) {
 	copy(handlers, f.handlers)
 	f.RUnlock()
 
+	wg := &sync.WaitGroup{}
+	wg.Add(len(handlers))
+
 	for _, handler := range handlers {
 		if log.factory.concurrent {
-			go log.handleone(handler, entry)
+			go func(handler EntryHandler) {
+				defer wg.Done()
+				log.handleone(handler, entry)
+			}(handler)
 		} else {
 			log.handleone(handler, entry)
 		}
 	}
 	if log.factory.concurrent {
-		runtime.Gosched()
+		wg.Wait()
 	}
 }
 
