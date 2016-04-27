@@ -33,7 +33,7 @@ func New() LogFactory {
 			minlevel: slf.LevelInfo,
 		},
 		contexts:   make(map[string]*logger),
-		concurrent: true,
+		concurrent: false,
 	}
 	res.root.factory = res
 	return res
