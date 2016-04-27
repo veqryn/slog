@@ -50,7 +50,7 @@ type jsonentry struct {
 	Timestamp string                  `json:"timestamp"`
 	Level     slf.Level               `json:"level"`
 	Message   string                  `json:"message"`
-	Error     *string                 `json:"error"`
+	Error     *string                 `json:"error,omitempty"`
 	Fields    *map[string]interface{} `json:"fields"`
 }
 

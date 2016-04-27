@@ -81,7 +81,7 @@ func TestJSON_withoutError_success(t *testing.T) {
 	if !strings.Contains(sw.res, `{"timestamp":"`) {
 		t.Errorf("unexpected json, %v", sw.res)
 	}
-	if !strings.Contains(sw.res, `,"level":"INFO","message":"info=26","error":null,"fields":{"F":{"A":25},"context":"json"}}`) {
+	if !strings.Contains(sw.res, `,"level":"INFO","message":"info=26","fields":{"F":{"A":25},"context":"json"}}`) {
 		t.Errorf("unexpected json, %v", sw.res)
 	}
 }
@@ -124,7 +124,7 @@ func TestJSON_withCaller_success(t *testing.T) {
 	if !strings.Contains(sw.res, `{"timestamp":"`) {
 		t.Errorf("unexpected json, %v", sw.res)
 	}
-	if !strings.Contains(sw.res, `","level":"INFO","message":"info=26","error":null,"fields":{"caller":"handler_test.go:117","context":"json"}}`) {
+	if !strings.Contains(sw.res, `","level":"INFO","message":"info=26","fields":{"caller":"handler_test.go:117","context":"json"}}`) {
 		t.Errorf("unexpected json, %v", sw.res)
 	}
 }
@@ -146,7 +146,7 @@ func TestJSON_withTrace_success(t *testing.T) {
 	if err := h.Handle(<-i.entry); err != nil {
 		t.Error(err)
 	}
-	if !strings.Contains(sw.res, `","level":"INFO","message":"info=26","error":null,"fields":{"context":"json"}}{"timestamp":"`) {
+	if !strings.Contains(sw.res, `","level":"INFO","message":"info=26","fields":{"context":"json"}}{"timestamp":"`) {
 		t.Errorf("unexpected json, %v", sw.res)
 	}
 	if !strings.Contains(sw.res, `","level":"INFO","message":"trace","error":"error","fields":{"context":"json","trace":`) {
