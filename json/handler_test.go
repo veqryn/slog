@@ -200,7 +200,7 @@ func TestJSON_onPartlyWritten_error(t *testing.T) {
 
 	sw := &stringwriter{cutshort: true}
 	h := json.New(sw)
-	if err := h.Handle(<-i.entry); err == nil || err.Error() != "json.Handler: Wrote only 115 bytes out of 116" {
+	if err := h.Handle(<-i.entry); err == nil || err.Error() != "json.Handler: Wrote only 102 bytes out of 103" {
 		t.Errorf("expecting different error, %v", err)
 	}
 }
