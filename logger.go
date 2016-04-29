@@ -11,6 +11,7 @@ import (
 	"path"
 	"runtime"
 	"time"
+	"os"
 )
 
 const (
@@ -154,6 +155,18 @@ func (log *logger) Panic(message string) {
 func (log *logger) Panicf(format string, args ...interface{}) {
 	log.logf(format, slf.LevelPanic, args...)
 	panic(fmt.Errorf(format, args...))
+}
+
+// Fatal implements the Logger interface.
+func (log *logger) Fatal(message string) {
+	log.log(slf.LevelFatal, message)
+	os.Exit(1)
+}
+
+// Fatalf implements the Logger interface.
+func (log *logger) Fatalf(format string, args ...interface{}) {
+	log.logf(format, slf.LevelFatal, args...)
+	os.Exit(1)
 }
 
 // Log implements the Logger interface.
