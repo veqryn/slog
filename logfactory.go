@@ -4,9 +4,10 @@
 package slog
 
 import (
-	"github.com/ventu-io/slf"
 	"strings"
 	"sync"
+
+	"github.com/ventu-io/slf"
 )
 
 const (
@@ -34,7 +35,7 @@ func New() LogFactory {
 			caller:   slf.CallerNone,
 		},
 		contexts:   make(map[string]*logger),
-		concurrent: true,
+		concurrent: false,
 	}
 	res.root.factory = res
 	return res
