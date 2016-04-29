@@ -37,6 +37,7 @@ var (
 type rootLogger struct {
 	minlevel slf.Level
 	factory  *logFactory
+	caller   slf.CallerInfo
 }
 
 // logger represents a logger in the context. It is created from the rootlogger by copying its

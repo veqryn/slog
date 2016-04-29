@@ -31,6 +31,7 @@ func New() LogFactory {
 	res := &logFactory{
 		root: rootLogger{
 			minlevel: slf.LevelInfo,
+			caller:   slf.CallerNone,
 		},
 		contexts:   make(map[string]*logger),
 		concurrent: true,
@@ -59,8 +60,9 @@ func (lf *logFactory) WithContext(context string) slf.StructuredLogger {
 	fields := make(map[string]interface{})
 	fields[ContextField] = context
 	ctx = &logger{
-		rootLogger: &rootLogger{minlevel: lf.root.minlevel, factory: lf.root.factory},
+		rootLogger: &rootLogger{minlevel: lf.root.minlevel, factory: lf.root.factory, caller: lf.root.caller},
 		fields:     fields,
+		caller:     lf.root.caller,
 	}
 	lf.Lock()
 	lf.contexts[context] = ctx
@@ -88,6 +90,30 @@ func (lf *logFactory) SetLevel(level slf.Level, contexts ...string) {
 			logger.rootLogger.minlevel = level
 		} else {
 			lf.root.minlevel = level
+		}
+	}
+}
+
+// SetCallerInfo sets the logging slf.CallerInfo to given contexts, all loggers if no context given,
+// or the root logger when context defined as "root".
+func (lf *logFactory) SetCallerInfo(callerInfo slf.CallerInfo, contexts ...string) {
+	// set on all current and root
+	if len(contexts) == 0 {
+		lf.root.caller = callerInfo
+		lf.Lock()
+		for _, logger := range lf.contexts {
+			logger.rootLogger.caller = callerInfo
+		}
+		lf.Unlock()
+		return
+	}
+	// setting on given only
+	for _, context := range contexts {
+		if strings.ToLower(context) != rootLevelKey {
+			logger, _ := lf.WithContext(context).(*logger) // locks internally
+			logger.rootLogger.caller = callerInfo
+		} else {
+			lf.root.caller = callerInfo
 		}
 	}
 }
