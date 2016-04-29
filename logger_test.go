@@ -357,3 +357,25 @@ func TestLogger_deferTrace_success(t *testing.T) {
 		return fmt.Errorf("error2")
 	}()
 }
+
+type builtinLogger interface {
+	Print(v ...interface{})
+	Printf(format string, v ...interface{})
+	Println(v ...interface{})
+}
+
+func TestBuiltinLogger(t *testing.T) {
+	th := &testhandler{}
+	lf := slog.New()
+	lf.AddEntryHandler(th)
+	lf.SetConcurrent(false)
+
+	var builtinLogger builtinLogger = lf.WithContext("ctx")
+	builtinLogger.Print("mymessage")
+	if th.entries[0].Level() != slf.LevelInfo {
+		t.Errorf("expected only INFO level, %v", th.entries)
+	}
+	if th.entries[0].Message() != "mymessage" {
+		t.Errorf("expected message of mymessage, %v", th.entries)
+	}
+}

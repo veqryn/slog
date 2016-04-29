@@ -6,12 +6,13 @@ package slog
 import (
 	"errors"
 	"fmt"
-	"github.com/ventu-io/slf"
 	stdlog "log"
+	"os"
 	"path"
 	"runtime"
 	"time"
-	"os"
+
+	"github.com/ventu-io/slf"
 )
 
 const (
@@ -128,17 +129,17 @@ func (log *logger) Infof(format string, args ...interface{}) slf.Tracer {
 
 // Print implements the built-in logger's most used methods.
 func (log *logger) Print(args ...interface{}) {
-	return log.log(slf.LevelInfo, fmt.Sprint(args...))
+	log.log(slf.LevelInfo, fmt.Sprint(args...))
 }
 
 // Println implements the built-in logger's most used methods.
 func (log *logger) Println(args ...interface{}) {
-	return log.log(slf.LevelInfo, fmt.Sprint(args...))
+	log.log(slf.LevelInfo, fmt.Sprint(args...))
 }
 
 // Printf implements the built-in logger's most used methods.
 func (log *logger) Printf(format string, args ...interface{}) {
-	return log.logf(format, slf.LevelInfo, args...)
+	log.logf(format, slf.LevelInfo, args...)
 }
 
 // Warn implements the Logger interface.
