@@ -6,13 +6,14 @@ package slog_test
 import (
 	"errors"
 	"fmt"
-	"github.com/ventu-io/slf"
-	"github.com/ventu-io/slog"
 	stdlog "log"
 	"path"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ventu-io/slf"
+	"github.com/ventu-io/slog"
 )
 
 func TestLogger_genericLog_success(t *testing.T) {
@@ -252,8 +253,9 @@ func TestLogger_withCallerLong_success(t *testing.T) {
 	logger.Log(slf.LevelInfo, "test3")
 	callers := make(map[string]struct{})
 	for _, e := range th.entries {
-		caller := strings.Split(fmt.Sprint(e.Fields()[slog.CallerField]), ":")[0]
-		if !strings.Contains(caller, "logger_test.go") {
+		caller := fmt.Sprint(e.Fields()[slog.CallerField])
+		caller = caller[:strings.LastIndex(caller, ":")]
+		if !strings.HasSuffix(caller, "logger_test.go") {
 			t.Errorf("expected to contain logger_test.go, %v", caller)
 		}
 		callers[caller] = struct{}{}
@@ -299,8 +301,9 @@ func TestLogger_withCaller_successiveCallOverrides_success(t *testing.T) {
 	logger0.Info("test0")
 	logger1.Info("test1")
 	logger2.Info("test2")
-	caller := strings.Split(fmt.Sprint(th.entries[0].Fields()[slog.CallerField]), ":")[0]
-	if path.Base(caller) == caller || !strings.Contains(caller, "logger_test.go") {
+	caller := fmt.Sprint(th.entries[0].Fields()[slog.CallerField])
+	caller = caller[:strings.LastIndex(caller, ":")]
+	if path.Base(caller) == caller || !strings.HasSuffix(caller, "logger_test.go") {
 		t.Errorf("expected long caller, %v", caller)
 	}
 	caller = strings.Split(fmt.Sprint(th.entries[1].Fields()[slog.CallerField]), ":")[0]
