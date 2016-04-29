@@ -126,6 +126,21 @@ func (log *logger) Infof(format string, args ...interface{}) slf.Tracer {
 	return log.logf(format, slf.LevelInfo, args...)
 }
 
+// Print implements the built-in logger's most used methods.
+func (log *logger) Print(args ...interface{}) {
+	return log.log(slf.LevelInfo, fmt.Sprint(args...))
+}
+
+// Println implements the built-in logger's most used methods.
+func (log *logger) Println(args ...interface{}) {
+	return log.log(slf.LevelInfo, fmt.Sprint(args...))
+}
+
+// Printf implements the built-in logger's most used methods.
+func (log *logger) Printf(format string, args ...interface{}) {
+	return log.logf(format, slf.LevelInfo, args...)
+}
+
 // Warn implements the Logger interface.
 func (log *logger) Warn(message string) slf.Tracer {
 	return log.log(slf.LevelWarn, message)
