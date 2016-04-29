@@ -6,12 +6,13 @@ package slog
 import (
 	"errors"
 	"fmt"
-	"github.com/ventu-io/slf"
 	stdlog "log"
+	"os"
 	"path"
 	"runtime"
 	"time"
-	"os"
+
+	"github.com/ventu-io/slf"
 )
 
 const (
@@ -78,7 +79,7 @@ func (log *logger) WithCaller(caller slf.CallerInfo) slf.StructuredLogger {
 }
 
 // WithError implements the Logger interface.
-func (log *logger) WithError(err error) slf.Logger {
+func (log *logger) WithError(err error) slf.StructuredLogger {
 	res := log.copy()
 	res.err = err
 	return res
